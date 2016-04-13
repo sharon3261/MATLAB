@@ -1,0 +1,143 @@
+//==========================================================================
+function draw_limit()
+    limit=csvRead('PN Spec.csv');
+    lim_x=limit(:,1:2:$);
+    lim_y=limit(:,2:2:$);
+    x=matrix(lim_x',12,1);
+    y=matrix(lim_y',12,1);
+    //=========================================
+    plot2d("ln",x,y,style=color("red"));
+    a.isoview='on';
+    a=gca();
+    a.children
+    poly1= a.children(1).children(1);
+    poly1.thickness = 3;
+    a.isoview='off';
+endfunction
+//====================================
+function format_graph(run_times_label,txt)
+    a=get("current_axes");
+    a.data_bounds = [10,-160;10000000,-70]
+    a.sub_ticks=[6,1];
+    a.box="on";
+    a.font_size=1;
+    a.font_style = 5;
+//=============================================
+    xlabel("Offset from Carrier(Hz)","fontsize",2);
+    ylabel("phase noise(dBc/Hz)","fontsize",2,"color","black");
+    xgrid(color('lightgrey'),1,3);
+//===========================
+    title(txt,'color','blue','fontsize',3,'fontname',3);
+   // legend([leg_arr;part_label(1);part_label(2);part_label(3);part_label(4);"Average"],"in_upper_right","off");
+   legend([leg_arr;part_label(1);part_label(3);part_label(4);"Average"],"in_upper_right","off");//====SD
+//===========================================================================
+endfunction
+//============================================================================
+//===========================================================================
+function [part_label,title_txt_rate]=plot_pn_same(m_rate,m_Vbat,m_band,m_file_name_x,m_file_name_y,num_rate)
+//======================================================
+file_path="\\raw data\";
+num= size(part_list)-1;
+//path to part average
+//=================================
+k=0;
+num_parts_label=0;
+ave_x=0;
+ave_y=0;
+num_board=1;
+num_part=1;
+num_signal=3;
+num_run=1;
+num_bat=3;//change bat
+num_band=2;//chang band
+//path for average
+file_path_average=strcat([file_path,board_list(num_board),'\','Ave','\',signal_list(num_signal)]);
+//loop through run times
+for n=1:num(:,2);
+//for n=1:1
+    files_x=listfiles(file_path+board_list(num_board)+'\'+part_list(n)+'\'+'Ave'+'\'+signal_list(num_signal)+'\x_*.csv');
+    files_y=listfiles(file_path+board_list(num_board)+'\'+part_list(n)+'\'+'Ave'+'\'+signal_list(num_signal)+'\y_*.csv');
+    num_files_x = size(files_x);
+    num_files_y = size(files_y);
+    if (num_board==2 & n==2) then
+        continue
+    end
+    if (num_board==1 & n==2) then
+        continue
+    end
+    num_parts_label=num_parts_label+1;
+    part_label(n)=part_list(n);
+    if (num_board==2) then
+        if(num_part==1) then
+            board_label=strcat([board_list(num_board),'#4']);
+        elseif(num_part==3) then
+            board_label=strcat([board_list(num_board),'#7']);
+        elseif(num_part==4) then
+            board_label=strcat([board_list(num_board),'#F']);
+        else
+            disp('no data for part2');
+        end
+    end
+  //  disp(files_y);
+//loop-------------------------------------
+         for j=1:num_files_y(:,1);
+            [bb_y,w]=strsplit(files_y(j),"_Buck_const_A_",2);
+            [bb_y_rate,w1]=strsplit(bb_y(2),"_ASCII",2);
+            [a,b,c_y_bat,piStringSplit]=regexp(files_y(j),m_Vbat);
+            [a,b,c_y_band,piStringSplit]=regexp(files_y(j),m_band);
+         if (c_y_band==band_list(num_band)) then
+                if (bb_y_rate(1)==load_rate_BB(num_rate) & c_y_bat==Vbat_BB(num_bat)) then
+                   [a1,b1,c_name_x,piStringSplit]=regexp(files_x(1),m_file_name_x);
+                   [a1,b1,c_name_y,piStringSplit]=regexp(files_y(j),m_file_name_y);
+                  // disp(c_name_x);
+                    k=k+1;
+                    disp(files_y(j))
+                    data_x=csvRead(files_x(1));
+                    data_y=csvRead(files_y(j));
+                    ave_y=ave_y+data_y;
+                    plot2d("ln", data_x, data_y, style=line_color(k));
+                end
+          end
+      end
+  end
+//=================================================================
+average_file_name_x=strcat([c_name_x,'_PART_AVE.csv']);
+//disp (average_file_name_x);
+average_file_name_y=strcat([c_name_y,'_PART_AVE.csv']);
+file_name_average_x=fullfile(file_path_average,average_file_name_x);
+file_name_average_y=fullfile(file_path_average,average_file_name_y);
+ave_x=data_x;
+ave_y=ave_y/num_parts_label;
+csvWrite(ave_y,file_name_average_y);
+plot2d("ln", ave_x, ave_y, style=24);
+//========================================================================
+title_txt_rate=strcat(['Part Ave',' on ',board_list(num_board),' for ',signal_list(num_signal),'(',band_list(num_band),')',' at ',Vbat(num_bat), ' with ',load_rate_BB(num_rate),'A',' loading']);
+endfunction
+//ini--------------------------------------------------
+title_txt='part varies with Vbat';
+line_color= {1,2,3,4,6,9,13,17,19,23,24,27,28,32,14,15};
+//------------------------------------
+leg_arr = {'Limit line'};
+signal_list={'S1','S2','S3','S4'};
+part_list={'part1','part2','part3','part4','part5'};
+run_times={'1st','2nd','3rd','4th','5th'};
+SD_board_list={'7','4','F'};
+board_list={'board1','board2'};
+Vbat={'3.2V','3.7V','4.35V'};
+Vbat_BB={'V_3.2','V_3.7','V_4.35'};
+//-------------------------------
+load_rate={'10%','20%','30%','40%','50%'};
+load_rate_BB={'0','0.25','0.5','0.75','1'};
+match_rate={'/10[\%]/','/20[\%]/','/30[\%]/','/40[\%]/','/50[\%]/'};
+match_rate_BB={'/A_0/','/A_0\.25/','/A_0\.5/','/A_0\.75/','/A_1/'};
+match_Vbat={'/(\d+)\.(\d+)V/'};
+match_Vbat_BB={'/V_(\d+)\.(\d+)/'};
+match_band={'/High_Band/','/Low_Band/'};
+match_file_name_y={'/y__BBCLK(\d+)(.*)ASCII/'};
+match_file_name_x={'/x__BBCLK(\d+)(.*)ASCII/'};
+//===================================================
+//subplot(221);
+draw_limit();
+[part_label,title_txt_rate]=plot_pn_same(match_rate_BB(5),match_Vbat_BB,match_band(2),match_file_name_x,match_file_name_y,5);
+format_graph(part_label,title_txt_rate);
+
